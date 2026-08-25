@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Oxford Reading Tree 단어놀이</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="site-header">
+  <div class="brand">
+    <svg class="brand-tree" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <rect x="29" y="34" width="6" height="24" rx="2" fill="#8a5a3b"/>
+      <circle cx="32" cy="26" r="20" fill="#2a9d3f"/>
+      <circle cx="18" cy="34" r="13" fill="#33ac48"/>
+      <circle cx="46" cy="34" r="13" fill="#33ac48"/>
+      <circle cx="22" cy="20" r="5" fill="#ef476f"/>
+      <circle cx="42" cy="22" r="5" fill="#ffb703"/>
+      <circle cx="32" cy="36" r="5" fill="#ef476f"/>
+    </svg>
+    <div class="brand-text">
+      <h1>Oxford Reading Tree 단어놀이</h1>
+      <p>그림으로 먼저 만나는 영어 단어 &amp; 표현</p>
+    </div>
+  </div>
+  <button class="btn-settings" id="btnOpenSettings">⚙️ 설정</button>
+</header>
+
+<div class="level-tabs-wrap">
+  <nav id="levelTabs" aria-label="레벨 선택"></nav>
+</div>
+
+<div class="sub-tabs-wrap">
+  <div id="subTabs"></div>
+</div>
+
+<main>
+  <div class="grid-panel">
+    <div id="cardGrid"></div>
+  </div>
+</main>
+
+<footer>🌳 우리 아이 첫 영어 단어, 책 읽기 전에 그림카드로 먼저 만나요.</footer>
+
+<!-- 학습 모달 -->
+<dialog id="studyModal">
+  <div class="modal-inner">
+    <button class="modal-close" id="btnCloseModal" aria-label="닫기">✕</button>
+    <div class="study-nav">
+      <button class="nav-btn" id="btnPrevItem" aria-label="이전 단어">◀</button>
+      <span class="study-counter" id="studyCounter"></span>
+      <button class="nav-btn" id="btnNextItem" aria-label="다음 단어">▶</button>
+    </div>
+    <div id="modalImage" class="study-image"></div>
+    <h2 class="study-word" id="modalWord"></h2>
+    <p class="study-ko" id="modalKo"></p>
+
+    <p class="section-title">🔊 발음 연습</p>
+    <div class="btn-row">
+      <button class="btn btn-pill" id="btnListenNative">🔊 원어민 발음 듣기</button>
+      <button class="btn btn-pill" id="btnRecord">🎤 내 발음 녹음하기</button>
+    </div>
+    <audio id="recordPlayback" controls hidden></audio>
+    <div class="btn-row" id="recordCompareRow" hidden style="margin-top:10px;">
+      <button class="btn btn-pill" id="btnListenNative2">🔊 원어민 발음 다시 듣기</button>
+    </div>
+
+    <p class="section-title">✍️ 영작 연습</p>
+    <textarea id="writingInput" placeholder="이 단어(표현)를 사용해서 짧은 영어 문장을 써보세요."></textarea>
+    <button class="btn btn-feedback" id="btnGetFeedback">✅ 첨삭받기</button>
+    <div class="feedback-box" id="feedbackBox" hidden></div>
+  </div>
+</dialog>
+
+<!-- 설정 모달 -->
+<dialog id="settingsModal">
+  <div class="modal-inner">
+    <button class="modal-close" id="btnCloseSettings" aria-label="닫기">✕</button>
+    <h2 style="margin-bottom:16px;">⚙️ 설정</h2>
+
+    <div class="settings-note">
+      영작 첨삭 기능은 Anthropic Claude API를 사용해요. 아래에 입력한 키는 <strong>이 브라우저에만</strong> 저장되고, 첨삭 요청 시에만 Anthropic 서버로 직접 전송돼요. 사용량 한도가 설정된 키를 사용하는 걸 추천해요.
+    </div>
+
+    <div class="settings-field">
+      <label for="settingsApiKey">Claude API 키</label>
+      <input type="password" id="settingsApiKey" placeholder="sk-ant-...">
+    </div>
+
+    <div class="settings-field">
+      <label for="settingsModel">모델 선택</label>
+      <select id="settingsModel">
+        <option value="claude-opus-5">Claude Opus 5 (가장 똑똑함, 비용 높음)</option>
+        <option value="claude-sonnet-5">Claude Sonnet 5 (균형)</option>
+        <option value="claude-haiku-4-5">Claude Haiku 4.5 (빠르고 저렴)</option>
+      </select>
+    </div>
+
+    <div class="settings-actions">
+      <button class="btn btn-secondary" id="btnClearKey">키 삭제</button>
+      <button class="btn btn-primary" id="btnSaveSettings">저장</button>
+    </div>
+  </div>
+</dialog>
+
+<script src="js/data.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
