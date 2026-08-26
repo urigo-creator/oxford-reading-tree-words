@@ -17,6 +17,22 @@
    CARD_BOXES 에 넣어뒀습니다.
    ========================================================================== */
 
+// "문장 고르기" 퀴즈용 예문. 구/문장 표현(word 에 공백이 있는 항목)마다
+// 그 표현이 실제로 쓰이는 한국어 문장과, 그 표현이 들어간 올바른 영어
+// 문장을 한 쌍으로 만들어뒀습니다. 키는 표현의 소문자 텍스트입니다.
+const PHRASE_EXAMPLES = {
+  'hide and seek': { ko: '우리 숨바꼭질 하자.', en: "Let's play hide and seek." },
+  'look at': { ko: '이것 좀 봐!', en: 'Look at this!' },
+  'go away': { ko: '저리 가!', en: 'Go away!' },
+  'come back': { ko: '이리 돌아와!', en: 'Come back here!' },
+  'come on': { ko: '자, 어서 가자!', en: "Come on, let's go!" },
+  'best of all': { ko: '무엇보다도 이게 최고야.', en: 'This is the best of all.' },
+  'go up': { ko: '사다리를 타고 올라가.', en: 'Go up the ladder.' },
+  'look after': { ko: '내 동생 좀 돌봐줘.', en: 'Look after my little brother.' },
+  'go on': { ko: '계속해, 할 수 있어!', en: 'Go on, you can do it!' },
+  'not again': { ko: '안돼, 또 이러지 마!', en: 'Not again!' },
+};
+
 const CARD_BOXES = {
   'Big Feet.png': { w: 1024, h: 1536, boxes: [[16,13,490,498], [507,9,498,507], [16,516,489,497], [511,516,489,497], [16,1019,490,498], [506,1013,500,509]] },
   'Go Away, Floppy.png': { w: 1024, h: 1536, boxes: [[28,34,478,494], [506,28,490,506], [38,547,457,472], [522,547,457,472], [28,1022,478,494], [509,1019,484,500]] },

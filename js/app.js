@@ -29,11 +29,24 @@ const QUIZ_TYPES = [
     title: '문장 고르기',
     // 책 한 권에는 구/문장 표현(공백이 있는 단어)이 몇 개 안 되는 경우가
     // 많아서(0~3개), 이 유형만 예외적으로 같은 유닛의 책 전체에서 모아
-    // 출제합니다.
-    desc: '한글 뜻을 보고 올바른 영어 표현을 골라보세요. (이 유닛의 구/문장 표현 전체에서 출제)',
-    getPool: (book, unit) => unit.books.flatMap((b) => b.items).filter((i) => i.word.includes(' ')),
-    prompt: (item) => item.ko,
-    answer: (item) => item.word,
+    // 출제합니다. 단순히 뜻 맞히기가 아니라, 그 표현이 실제로 쓰이는
+    // 한국어 문장을 보고 표현이 들어간 올바른 영어 문장을 고르는 방식이라
+    // PHRASE_EXAMPLES 에 예문이 등록된 표현만 출제 대상입니다.
+    desc: '한글 문장을 보고, 그 표현이 들어간 올바른 영어 문장을 골라보세요. (이 유닛 전체에서 출제)',
+    getPool: (book, unit) => {
+      const items = unit.books.flatMap((b) => b.items).filter((i) => PHRASE_EXAMPLES[i.word.trim().toLowerCase()]);
+      const seen = new Set();
+      const deduped = [];
+      for (const item of items) {
+        const key = item.word.trim().toLowerCase();
+        if (seen.has(key)) continue;
+        seen.add(key);
+        deduped.push(item);
+      }
+      return deduped;
+    },
+    prompt: (item) => PHRASE_EXAMPLES[item.word.trim().toLowerCase()].ko,
+    answer: (item) => PHRASE_EXAMPLES[item.word.trim().toLowerCase()].en,
   },
 ];
 
