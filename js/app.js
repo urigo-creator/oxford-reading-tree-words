@@ -27,8 +27,8 @@ const QUIZ_TYPES = [
     id: 'sentence',
     emoji: '📝',
     title: '문장 고르기',
-    desc: '한글 문장을 보고 올바른 영어 문장을 골라보세요. (Phrase 표현 한정)',
-    pool: (items) => items.filter((i) => i.type === 'phrase'),
+    desc: '한글 뜻을 보고 올바른 영어 표현을 골라보세요. (구/문장 표현 한정)',
+    pool: (items) => items.filter((i) => i.word.includes(' ')),
     prompt: (item) => item.ko,
     answer: (item) => item.word,
   },
@@ -36,7 +36,9 @@ const QUIZ_TYPES = [
 
 const state = {
   levelId: 'level1',
-  tab: 'vocab', // 'vocab' | 'phrase' | 'quiz'
+  unitId: null,
+  bookId: null,
+  mode: 'cards', // 'cards' | 'quiz'
   recorder: null,
   recordedChunks: [],
   recordedUrl: null,
@@ -44,6 +46,7 @@ const state = {
   studyList: [],
   studyIndex: 0,
   studyImageDir: '',
+  studyAudioDir: '',
   quiz: { type: null, questions: [], index: 0, score: 0, answered: false },
 };
 
@@ -72,14 +75,37 @@ function shuffle(arr) {
 }
 
 /* -------------------------------------------------------------------------
-   레벨 탭 & Vocabulary/Phrase/퀴즈 서브탭 렌더링
+   현재 선택 상태 helper
+   ------------------------------------------------------------------------- */
+
+function currentLevel() {
+  return LEVELS.find((l) => l.id === state.levelId);
+}
+function currentUnit() {
+  const lv = currentLevel();
+  return lv.units.find((u) => u.id === state.unitId) || null;
+}
+function currentBook() {
+  const unit = currentUnit();
+  if (!unit) return null;
+  return unit.books.find((b) => b.id === state.bookId) || null;
+}
+function currentImageDir() {
+  return `${currentLevel().dirName}/${currentUnit().dirName}`;
+}
+function currentAudioDir() {
+  return `${currentLevel().dirName}/audio`;
+}
+
+/* -------------------------------------------------------------------------
+   레벨 탭
    ------------------------------------------------------------------------- */
 
 function renderLevelTabs() {
   const nav = $('#levelTabs');
   nav.innerHTML = LEVELS.map((lv) => {
     const theme = LEVEL_THEME_COLORS[lv.id];
-    const hasData = lv.items.length > 0;
+    const hasData = lv.units.length > 0;
     const active = lv.id === state.levelId;
     return `
       <button
@@ -98,13 +124,18 @@ function renderLevelTabs() {
   $$('.level-tab', nav).forEach((btn) => {
     btn.addEventListener('click', () => {
       const lv = LEVELS.find((l) => l.id === btn.dataset.level);
-      if (!lv || lv.items.length === 0) {
-        showComingSoon(lv);
+      if (!lv || lv.units.length === 0) {
+        showLevelComingSoon(lv);
         return;
       }
       state.levelId = lv.id;
+      state.unitId = lv.units[0].id;
+      state.bookId = lv.units[0].books[0] ? lv.units[0].books[0].id : null;
+      state.mode = 'cards';
       resetQuiz();
       renderLevelTabs();
+      renderUnitTabs();
+      renderBookTabs();
       renderSubTabs();
       renderMainArea();
       applyLevelTheme(lv.id);
@@ -118,43 +149,124 @@ function applyLevelTheme(levelId) {
   document.documentElement.style.setProperty('--brand-soft', theme.soft);
 }
 
-function showComingSoon(lv) {
+function showLevelComingSoon(lv) {
   $('#quizArea').hidden = true;
   $('#cardGrid').hidden = false;
-  const grid = $('#cardGrid');
-  grid.innerHTML = `
+  $('#cardGrid').innerHTML = `
     <div class="empty-state">
       <div class="empty-state-tree">🌳</div>
-      <p><strong>${lv ? lv.label : '이 레벨'}</strong> 그림카드는 아직 준비 중이에요.</p>
-      <p class="empty-state-sub">Level1 처럼 하위 폴더에 그림카드를 넣고 data.js 에 등록하면 바로 열려요.</p>
+      <p><strong>${lv ? lv.label : '이 레벨'}</strong> 은 아직 준비 중이에요.</p>
+      <p class="empty-state-sub">Level1 처럼 유닛/책 폴더에 그림카드를 넣고 data.js 에 등록하면 바로 열려요.</p>
     </div>
   `;
+  $('#unitTabs').innerHTML = '';
+  $('#bookTabs').innerHTML = '';
   $('#subTabs').innerHTML = '';
 }
 
-function renderSubTabs() {
-  const lv = LEVELS.find((l) => l.id === state.levelId);
-  const vocabCount = lv.items.filter((i) => i.type === 'vocab').length;
-  const phraseCount = lv.items.filter((i) => i.type === 'phrase').length;
-  const showStudyAll = state.tab !== 'quiz';
+/* -------------------------------------------------------------------------
+   유닛 탭
+   ------------------------------------------------------------------------- */
 
-  $('#subTabs').innerHTML = `
-    <button class="sub-tab ${state.tab === 'vocab' ? 'is-active' : ''}" data-tab="vocab">
-      📚 Vocabulary <span class="sub-tab-count">${vocabCount}</span>
+function renderUnitTabs() {
+  const lv = currentLevel();
+  const nav = $('#unitTabs');
+  nav.innerHTML = lv.units.map((u) => {
+    const active = u.id === state.unitId;
+    const hasBooks = u.books.length > 0;
+    return `
+      <button class="unit-tab ${active ? 'is-active' : ''} ${hasBooks ? '' : 'is-empty'}" data-unit="${u.id}">
+        <span>${escapeHtml(u.label)}</span>
+        ${hasBooks ? '' : '<span class="level-tab-badge">준비중</span>'}
+      </button>
+    `;
+  }).join('');
+
+  $$('.unit-tab', nav).forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const unit = lv.units.find((u) => u.id === btn.dataset.unit);
+      state.unitId = unit.id;
+      state.bookId = unit.books[0] ? unit.books[0].id : null;
+      state.mode = 'cards';
+      resetQuiz();
+      renderUnitTabs();
+      renderBookTabs();
+      renderSubTabs();
+      renderMainArea();
+    });
+  });
+}
+
+function showUnitComingSoon(unit) {
+  $('#quizArea').hidden = true;
+  $('#cardGrid').hidden = false;
+  $('#cardGrid').innerHTML = `
+    <div class="empty-state">
+      <div class="empty-state-tree">🌳</div>
+      <p><strong>${unit ? unit.label : '이 유닛'}</strong> 책들은 아직 준비 중이에요.</p>
+      <p class="empty-state-sub">이 유닛 폴더에 책별 그림카드를 넣고 data.js 에 등록하면 바로 열려요.</p>
+    </div>
+  `;
+  $('#bookTabs').innerHTML = '';
+  $('#subTabs').innerHTML = '';
+}
+
+/* -------------------------------------------------------------------------
+   책 탭
+   ------------------------------------------------------------------------- */
+
+function renderBookTabs() {
+  const unit = currentUnit();
+  const nav = $('#bookTabs');
+  if (unit.books.length === 0) {
+    nav.innerHTML = '';
+    return;
+  }
+  nav.innerHTML = unit.books.map((b) => {
+    const active = b.id === state.bookId;
+    return `<button class="book-tab ${active ? 'is-active' : ''}" data-book="${b.id}">📖 ${escapeHtml(b.title)}</button>`;
+  }).join('');
+
+  $$('.book-tab', nav).forEach((btn) => {
+    btn.addEventListener('click', () => {
+      state.bookId = btn.dataset.book;
+      state.mode = 'cards';
+      resetQuiz();
+      renderBookTabs();
+      renderSubTabs();
+      renderMainArea();
+    });
+  });
+}
+
+/* -------------------------------------------------------------------------
+   카드/퀴즈 모드 전환 탭 ("전체 학습하기" 포함)
+   ------------------------------------------------------------------------- */
+
+function renderSubTabs() {
+  const book = currentBook();
+  const subTabsEl = $('#subTabs');
+  if (!book) {
+    subTabsEl.innerHTML = '';
+    return;
+  }
+  const count = book.items.length;
+  const showStudyAll = state.mode !== 'quiz';
+
+  subTabsEl.innerHTML = `
+    <button class="sub-tab ${state.mode === 'cards' ? 'is-active' : ''}" data-mode="cards">
+      📚 카드 <span class="sub-tab-count">${count}</span>
     </button>
-    <button class="sub-tab ${state.tab === 'phrase' ? 'is-active' : ''}" data-tab="phrase">
-      💬 Phrase <span class="sub-tab-count">${phraseCount}</span>
-    </button>
-    <button class="sub-tab ${state.tab === 'quiz' ? 'is-active' : ''}" data-tab="quiz">
+    <button class="sub-tab ${state.mode === 'quiz' ? 'is-active' : ''}" data-mode="quiz">
       🎯 퀴즈
     </button>
     ${showStudyAll ? '<button class="btn btn-study-all" id="btnStudyAll">🌳 전체 학습하기</button>' : ''}
   `;
 
-  $$('.sub-tab', $('#subTabs')).forEach((btn) => {
+  $$('.sub-tab', subTabsEl).forEach((btn) => {
     btn.addEventListener('click', () => {
-      const enteringQuiz = btn.dataset.tab === 'quiz' && state.tab !== 'quiz';
-      state.tab = btn.dataset.tab;
+      const enteringQuiz = btn.dataset.mode === 'quiz' && state.mode !== 'quiz';
+      state.mode = btn.dataset.mode;
       if (enteringQuiz) resetQuiz();
       renderSubTabs();
       renderMainArea();
@@ -163,15 +275,19 @@ function renderSubTabs() {
 
   if (showStudyAll) {
     $('#btnStudyAll').addEventListener('click', () => {
-      const items = lv.items.filter((i) => i.type === state.tab);
-      if (items.length === 0) return;
-      startStudySession(items, 0, lv.imageDir);
+      if (book.items.length === 0) return;
+      startStudySession(book.items, 0, currentImageDir(), currentAudioDir());
     });
   }
 }
 
 function renderMainArea() {
-  const isQuiz = state.tab === 'quiz';
+  const unit = currentUnit();
+  if (unit.books.length === 0) {
+    showUnitComingSoon(unit);
+    return;
+  }
+  const isQuiz = state.mode === 'quiz';
   $('#cardGrid').hidden = isQuiz;
   $('#quizArea').hidden = !isQuiz;
   if (isQuiz) renderQuizArea();
@@ -193,18 +309,20 @@ function spriteStyle(item, imageDir) {
 }
 
 function renderCardGrid() {
-  const lv = LEVELS.find((l) => l.id === state.levelId);
-  const items = lv.items.filter((i) => i.type === state.tab);
+  const book = currentBook();
+  const imageDir = currentImageDir();
+  const audioDir = currentAudioDir();
+  const items = book.items;
   const grid = $('#cardGrid');
 
   if (items.length === 0) {
-    grid.innerHTML = `<div class="empty-state"><div class="empty-state-tree">🍂</div><p>아직 이 탭에는 카드가 없어요.</p></div>`;
+    grid.innerHTML = `<div class="empty-state"><div class="empty-state-tree">🍂</div><p>아직 이 책에는 카드가 없어요.</p></div>`;
     return;
   }
 
   grid.innerHTML = items.map((item) => `
     <article class="card" data-id="${item.id}">
-      <div class="card-image" style="${spriteStyle(item, lv.imageDir)}"></div>
+      <div class="card-image" style="${spriteStyle(item, imageDir)}"></div>
       <div class="card-body">
         <h3 class="card-word">${escapeHtml(item.word)}</h3>
         <p class="card-ko">${escapeHtml(item.ko)}</p>
@@ -216,7 +334,7 @@ function renderCardGrid() {
   $$('.btn-study', grid).forEach((btn) => {
     btn.addEventListener('click', () => {
       const index = items.findIndex((i) => i.id === btn.dataset.id);
-      startStudySession(items, index, lv.imageDir);
+      startStudySession(items, index, imageDir, audioDir);
     });
   });
 }
@@ -225,10 +343,11 @@ function renderCardGrid() {
    학습 모달 (발음 듣기 / 녹음 비교)
    ------------------------------------------------------------------------- */
 
-function startStudySession(list, startIndex, imageDir) {
+function startStudySession(list, startIndex, imageDir, audioDir) {
   state.studyList = list;
   state.studyIndex = startIndex;
   state.studyImageDir = imageDir;
+  state.studyAudioDir = audioDir;
   renderStudyModalContent();
   $('#studyModal').showModal();
 }
@@ -272,7 +391,7 @@ function closeStudyModal() {
 // 파일이 없거나 재생에 실패할 때만 음성 합성으로 대체합니다.
 let nativeAudio = null;
 
-function speakWord(item, imageDir) {
+function speakWord(item, audioDir) {
   if (nativeAudio) {
     nativeAudio.pause();
     nativeAudio = null;
@@ -284,7 +403,7 @@ function speakWord(item, imageDir) {
     speakWithBrowserTTS(item.word);
   };
 
-  const src = `${imageDir}/audio/${slugify(item.word)}.m4a`;
+  const src = `${audioDir}/${slugify(item.word)}.m4a`;
   const audio = new Audio(src);
   nativeAudio = audio;
   audio.addEventListener('error', fallbackToTTS);
@@ -381,15 +500,15 @@ function updateRecordButton() {
 }
 
 /* -------------------------------------------------------------------------
-   퀴즈
+   퀴즈 (현재 선택된 책의 단어들로 출제)
    ------------------------------------------------------------------------- */
 
 function resetQuiz() {
   state.quiz = { type: null, questions: [], index: 0, score: 0, answered: false };
 }
 
-function buildQuizQuestions(quizType, lv) {
-  const pool = quizType.pool(lv.items);
+function buildQuizQuestions(quizType, items) {
+  const pool = quizType.pool(items);
   const roundSize = Math.min(QUIZ_ROUND_SIZE, pool.length);
   const chosen = shuffle(pool.slice()).slice(0, roundSize);
 
@@ -415,11 +534,11 @@ function renderQuizArea() {
 }
 
 function renderQuizTypeSelect(container) {
-  const lv = LEVELS.find((l) => l.id === state.levelId);
+  const book = currentBook();
   container.innerHTML = `
     <div class="quiz-type-grid">
       ${QUIZ_TYPES.map((qt) => {
-        const poolSize = qt.pool(lv.items).length;
+        const poolSize = qt.pool(book.items).length;
         const disabled = poolSize < 4;
         return `
           <button class="quiz-type-card" data-quiz-type="${qt.id}" ${disabled ? 'disabled aria-disabled="true"' : ''}>
@@ -437,9 +556,9 @@ function renderQuizTypeSelect(container) {
 }
 
 function startQuiz(typeId) {
-  const lv = LEVELS.find((l) => l.id === state.levelId);
+  const book = currentBook();
   const quizType = QUIZ_TYPES.find((q) => q.id === typeId);
-  const questions = buildQuizQuestions(quizType, lv);
+  const questions = buildQuizQuestions(quizType, book.items);
   state.quiz = { type: quizType, questions, index: 0, score: 0, answered: false };
   renderQuizArea();
 }
@@ -531,8 +650,15 @@ function renderQuizResult(container) {
    ------------------------------------------------------------------------- */
 
 function init() {
+  const lv = currentLevel();
+  state.unitId = lv.units[0].id;
+  const firstUnit = lv.units[0];
+  state.bookId = firstUnit.books[0] ? firstUnit.books[0].id : null;
+
   applyLevelTheme(state.levelId);
   renderLevelTabs();
+  renderUnitTabs();
+  renderBookTabs();
   renderSubTabs();
   renderMainArea();
 
@@ -540,8 +666,8 @@ function init() {
   $('#studyModal').addEventListener('click', (e) => {
     if (e.target === $('#studyModal')) closeStudyModal();
   });
-  $('#btnListenNative').addEventListener('click', () => speakWord(currentStudyItem(), state.studyImageDir));
-  $('#btnListenNative2').addEventListener('click', () => speakWord(currentStudyItem(), state.studyImageDir));
+  $('#btnListenNative').addEventListener('click', () => speakWord(currentStudyItem(), state.studyAudioDir));
+  $('#btnListenNative2').addEventListener('click', () => speakWord(currentStudyItem(), state.studyAudioDir));
   $('#btnRecord').addEventListener('click', toggleRecording);
   $('#btnPrevItem').addEventListener('click', () => goToStudyItem(-1));
   $('#btnNextItem').addEventListener('click', () => goToStudyItem(1));

@@ -1,31 +1,35 @@
 /* ==========================================================================
    Oxford Reading Tree 단어놀이 - 데이터 정의
    ------------------------------------------------------------------------
-   각 레벨은 여러 장의 "시트" 이미지로 구성됩니다. 한 장의 시트 이미지 안에
-   3열x4행(단어 12개) 또는 2열x3행(문장/구 6개) 카드가 격자로 들어있고,
-   각 칸에는 그림 + 영어 텍스트가 이미 그려져 있습니다.
+   구조: 레벨(Level) > 유닛(Unit, 예: "1. First Sentence") > 책(Book, 예:
+   "Big Feet") > 그 책에 나오는 단어/표현 카드들.
+
+   책 한 권의 그림카드는 한 장의 이미지 안에 여러 칸(2~3열 x 3~4행)이
+   격자로 들어있고, 각 칸에는 그림 + 영어 텍스트가 이미 그려져 있습니다.
    화면에 낱장 카드로 보여줄 때는 이미지를 다시 자르지 않고, CSS 배경
    스프라이트 기법(background-size / background-position)으로 한 칸만
    잘라서 보여줍니다. (app.js 의 spriteStyle 참고)
 
-   격자 칸의 실제 그림 경계는 사진마다 미묘하게 다르기 때문에(카드 사이
-   여백이 균일하지 않음), 균등 분할로 자르면 옆 카드 테두리가 살짝 섞여
-   보이는 문제가 있었습니다. 그래서 각 시트 이미지를 분석해 카드별 정확한
-   픽셀 좌표([x, y, w, h], 왼쪽→오른쪽·위→아래 순서)를 미리 계산해 아래
+   각 시트 이미지의 칸 경계는 사진마다 미묘하게 다르기 때문에(카드 사이
+   여백이 균일하지 않음), 균등 분할로 자르면 옆 카드 테두리가 섞여 보이는
+   문제가 있었습니다. 그래서 각 시트 이미지를 분석해 카드별 정확한 픽셀
+   좌표([x, y, w, h], 왼쪽→오른쪽·위→아래 순서)를 미리 계산해 아래
    CARD_BOXES 에 넣어뒀습니다.
    ========================================================================== */
 
 const CARD_BOXES = {
-  '079AFE3A-5A08-485B-B013-FA6EFB55AC31.PNG': { w: 1024, h: 1536, boxes: [[22,25,320,364], [342,23,323,367], [665,15,338,384], [22,409,320,364], [342,408,323,367], [665,399,338,384], [29,784,306,348], [350,784,306,348], [681,784,306,348], [22,1137,320,364], [342,1136,323,367], [669,1132,330,375]] },
-  'FC0643A6-098A-4D85-8875-039D9365C268.PNG': { w: 1024, h: 1536, boxes: [[29,41,471,473], [500,27,498,500], [29,535,471,473], [509,531,479,481], [29,1022,471,473], [503,1012,491,493]] },
-  '8BD59A61-6FE0-4854-BF6D-4335F9595AA3.PNG': { w: 1024, h: 1536, boxes: [[21,29,317,361], [338,20,333,379], [671,22,330,375], [21,409,317,361], [340,403,329,374], [671,403,329,374], [21,777,317,361], [346,777,317,361], [677,777,317,361], [21,1140,317,361], [343,1138,322,366], [675,1138,322,366]] },
-  'C9474A83-1015-4F85-8096-5DF19851B7C2.PNG': { w: 1024, h: 1536, boxes: [[18,23,322,366], [341,19,329,374], [673,19,329,374], [18,398,322,366], [340,393,331,376], [672,393,331,376], [18,770,322,366], [344,769,324,369], [676,769,324,369], [18,1142,322,366], [341,1138,330,375], [673,1138,330,375]] },
-  'F9C9CCA5-EA3E-4674-B3EB-8E4931107A49.PNG': { w: 1024, h: 1536, boxes: [[14,23,326,371], [340,19,333,379], [673,18,336,382], [14,412,326,371], [340,408,333,379], [673,406,336,382], [25,790,303,345], [355,790,303,345], [689,790,303,345], [14,1140,326,371], [340,1136,333,379], [673,1135,335,381]] },
-  'EA0AEA94-2A1C-4736-B8E7-CC930F627245.PNG': { w: 1024, h: 1536, boxes: [[17,31,311,354], [331,18,335,381], [669,19,332,378], [17,410,311,354], [333,399,331,377], [669,399,331,377], [17,780,311,354], [339,776,318,362], [676,776,318,362], [17,1151,311,354], [331,1138,335,381], [669,1139,332,378]] },
-  '3BCF10BD-AD16-453B-A69D-E846506AF38F.PNG': { w: 1024, h: 1536, boxes: [[17,32,323,367], [340,28,330,375], [670,25,334,380], [17,420,323,367], [340,416,330,375], [671,415,331,377], [17,793,323,367], [342,792,325,370], [674,792,325,370], [19,1162,319,363], [345,1162,319,363], [677,1162,319,363]] },
-  'A63E09D5-E05B-45FE-93C9-63AF9F1C322C.PNG': { w: 1055, h: 1491, boxes: [[33,21,484,486], [529,21,484,486], [39,507,473,475], [535,507,473,475], [31,982,488,490], [527,982,488,490]] },
-  'DF6163A2-69F2-43DA-AF70-47D690D17B5B.PNG': { w: 1024, h: 1536, boxes: [[23,26,479,481], [502,16,498,500], [23,519,479,481], [509,517,484,486], [23,1014,479,481], [502,1005,498,500]] },
-  'A098052E-F13F-423D-9377-68ED9AB9AD8C.PNG': { w: 1024, h: 1536, boxes: [[16,28,321,365], [337,19,336,382], [673,20,335,381], [16,410,321,365], [339,405,331,376], [675,405,331,376], [16,786,321,365], [340,781,330,375], [675,781,330,375], [22,1156,309,352], [350,1156,309,352], [686,1156,309,352]] },
+  'Big Feet.png': { w: 1024, h: 1536, boxes: [[16,13,490,498], [507,9,498,507], [16,516,489,497], [511,516,489,497], [16,1019,490,498], [506,1013,500,509]] },
+  'Go Away, Floppy.png': { w: 1024, h: 1536, boxes: [[28,34,478,494], [506,28,490,506], [38,547,457,472], [522,547,457,472], [28,1022,478,494], [509,1019,484,500]] },
+  'Hide and Seek.png': { w: 1024, h: 1536, boxes: [[39,23,463,378], [502,14,483,395], [39,419,463,378], [506,414,475,388], [61,802,419,342], [534,802,419,342], [39,1147,463,378], [508,1144,471,385]] },
+  "Kippers's Diary.png": { w: 1024, h: 1536, boxes: [[14,19,329,384], [343,19,329,384], [672,15,335,391], [14,410,329,384], [343,410,329,384], [675,410,329,384], [32,794,293,342], [361,794,293,342], [693,794,293,342], [14,1137,329,384], [343,1137,329,384], [673,1136,332,387]] },
+  'Look at Me.png': { w: 1024, h: 1536, boxes: [[27,26,480,496], [507,20,491,507], [31,529,471,486], [517,529,471,486], [27,1019,480,496], [508,1015,488,504]] },
+  'Reds and Blues.png': { w: 1024, h: 1536, boxes: [[30,11,476,501], [508,9,481,506], [30,518,476,501], [508,515,481,507], [30,1025,476,501], [508,1022,481,507]] },
+  'Go Away, Cat.png': { w: 1024, h: 1536, boxes: [[29,22,481,498], [511,19,487,504], [39,523,461,477], [524,523,461,477], [29,1006,481,498], [510,1001,490,507]] },
+  'Go On, Mum!.png': { w: 1024, h: 1536, boxes: [[42,24,462,486], [504,16,478,503], [42,525,462,486], [506,519,474,499], [277,1018,465,489]] },
+  'Look After Me.png': { w: 1024, h: 1536, boxes: [[18,19,486,491], [504,12,500,505], [19,520,485,490], [511,520,485,490], [18,1010,486,491], [511,1010,486,491]] },
+  'Present for Dad.png': { w: 1254, h: 1254, boxes: [[16,10,403,408], [419,8,407,412], [826,8,407,412], [24,420,387,392], [429,420,387,392], [836,420,387,392], [16,816,403,408], [419,814,407,412], [826,814,407,412]] },
+  'Top Dog.png': { w: 1024, h: 1536, boxes: [[16,23,491,494], [507,18,500,504], [16,530,491,494], [510,529,493,497], [17,1026,488,491], [512,1026,488,491]] },
+  'What Dogs Like.png': { w: 1024, h: 1536, boxes: [[10,23,494,488], [504,18,504,498], [14,525,486,480], [513,525,486,480], [10,1007,494,488], [506,1005,499,493]] },
 };
 
 // 레벨별 색상 테마 (전통적인 리딩 스킴 스테이지 컬러밴드에서 영감을 받은
@@ -43,142 +47,180 @@ const LEVEL_THEME_COLORS = {
 };
 
 /**
- * 시트 한 장을 정의하고, words 배열([영어, 한글 뜻] 쌍, 왼쪽→오른쪽·위→아래
- * 순서)을 CARD_BOXES 의 정확한 픽셀 좌표와 짝지어 개별 학습 카드 아이템
- * 배열을 만들어 반환합니다.
+ * 책 한 권을 정의합니다. words 는 [영어, 한글 뜻] 쌍의 배열이며, 시트
+ * 이미지에서 왼쪽→오른쪽·위→아래 순서와 반드시 일치해야 합니다.
  */
-function defineSheet({ file, type, words }) {
+function defineBook({ id, title, file, words }) {
   const boxInfo = CARD_BOXES[file];
   if (!boxInfo) {
     console.warn(`[data] ${file} 의 카드 좌표(CARD_BOXES)가 없어요.`);
-    return [];
+    return { id, title, file, items: [] };
   }
   if (words.length !== boxInfo.boxes.length) {
     console.warn(`[data] ${file} 의 단어 개수(${words.length})가 카드 개수(${boxInfo.boxes.length})와 다릅니다.`);
   }
-  return words.map(([word, ko], i) => {
+  const items = words.map(([word, ko], i) => {
     const [x, y, w, h] = boxInfo.boxes[i];
     return {
-      id: `${file.replace(/\.\w+$/, '')}-${i}`,
+      id: `${id}-${i}`,
       word,
       ko,
-      type, // 'vocab' | 'phrase'
       sheet: { file, x, y, w, h, sheetW: boxInfo.w, sheetH: boxInfo.h, aspect: w / h },
     };
   });
+  return { id, title, file, items };
 }
 
-const LEVEL1_ITEMS = [
-  ...defineSheet({
-    file: '079AFE3A-5A08-485B-B013-FA6EFB55AC31.PNG',
-    type: 'vocab',
+const UNIT1_BOOKS = [
+  defineBook({
+    id: 'big-feet',
+    title: 'Big Feet',
+    file: 'Big Feet.png',
     words: [
-      ['in', '~안에'], ['on', '~위에'], ['under', '~아래에'],
-      ['at', '~에서'], ['away', '멀리, 떨어져'], ['up', '위로'],
-      ['down', '아래로'], ['out', '밖으로'], ['day', '낮, 하루'],
-      ['yes', '네'], ['no', '아니요'], ['all', '모두, 다'],
+      ['big', '큰'], ['feet', '발'],
+      ['monster', '괴물'], ['dinosaur', '공룡'],
+      ['giant', '거인'], ['dad', '아빠'],
     ],
   }),
-  ...defineSheet({
-    file: 'FC0643A6-098A-4D85-8875-039D9365C268.PNG',
-    type: 'phrase',
+  defineBook({
+    id: 'go-away-floppy',
+    title: 'Go Away, Floppy',
+    file: 'Go Away, Floppy.png',
     words: [
-      ['Look at me.', '나를 봐.'], ['Can you see me?', '나 보여?'],
-      ['Who is it?', '누구야?'], ['What is it?', '이게 뭐야?'],
-      ['I like dogs.', '나는 개를 좋아해.'], ['Look out!', '조심해!'],
+      ['skip', '깡충깡충 뛰다'], ['paint', '그림을 그리다'],
+      ['sorry', '미안해'], ['back', '뒤로, 등'],
+      ['go away', '저리 가'], ['come back', '돌아오다'],
     ],
   }),
-  ...defineSheet({
-    file: '8BD59A61-6FE0-4854-BF6D-4335F9595AA3.PNG',
-    type: 'vocab',
+  defineBook({
+    id: 'hide-and-seek',
+    title: 'Hide and Seek',
+    file: 'Hide and Seek.png',
     words: [
-      ['push', '밀다'], ['ride', '타다'], ['run', '달리다'],
-      ['say', '말하다'], ['see', '보다'], ['sit', '앉다'],
-      ['stand', '서다'], ['take', '잡다, 가지다'], ['want', '원하다'],
-      ['went', '갔다 (go의 과거형)'], ['write', '쓰다'], ['make', '만들다'],
+      ['hide', '숨다'], ['seek', '찾다'],
+      ['see', '보다'], ['all', '모두'],
+      ['yes', '네'], ['hide and seek', '숨바꼭질'],
+      ['can', '~할 수 있다'], ["can't", '~할 수 없다'],
     ],
   }),
-  ...defineSheet({
-    file: 'C9474A83-1015-4F85-8096-5DF19851B7C2.PNG',
-    type: 'vocab',
+  defineBook({
+    id: 'kippers-diary',
+    title: "Kipper's Diary",
+    file: "Kippers's Diary.png",
     words: [
-      ['be', '~이다, 있다'], ['can', '~할 수 있다'], ['come', '오다'],
-      ['get', '얻다, 받다'], ['go', '가다'], ['have', '가지다'],
-      ['hide', '숨다'], ['jump', '뛰다, 점프하다'], ['like', '좋아하다'],
-      ['look', '보다'], ['play', '놀다'], ['pull', '당기다'],
+      ['diary', '일기장'], ['wet', '젖은'], ['windy', '바람이 부는'],
+      ['sunny', '화창한'], ['hot', '더운'], ['fun', '재미있는'],
+      ['shop', '가게'], ['pool', '수영장'], ['park', '공원'],
+      ['day', '하루, 날'], ['go', '가다'], ['to', '~으로'],
     ],
   }),
-  ...defineSheet({
-    file: 'F9C9CCA5-EA3E-4674-B3EB-8E4931107A49.PNG',
-    type: 'vocab',
+  defineBook({
+    id: 'look-at-me',
+    title: 'Look at Me',
+    file: 'Look at Me.png',
     words: [
-      ['park', '공원'], ['present', '선물'], ['robot', '로봇'],
-      ['sandcastle', '모래성'], ['tent', '텐트'], ['treasure', '보물'],
-      ['wheel', '바퀴'], ['ball', '공'], ['book', '책'],
-      ['gloves', '장갑'], ['ice cream', '아이스크림'], ['puddle', '웅덩이'],
+      ['look', '보다'], ['bike', '자전거'],
+      ['mum', '엄마'], ['ride', '타다'],
+      ['on', '~위에'], ['look at', '~을 보다'],
     ],
   }),
-  ...defineSheet({
-    file: 'EA0AEA94-2A1C-4736-B8E7-CC930F627245.PNG',
-    type: 'vocab',
+  defineBook({
+    id: 'reds-and-blues',
+    title: 'Reds and Blues',
+    file: 'Reds and Blues.png',
     words: [
-      ['bad', '나쁜'], ['big', '큰'], ['blue', '파란색의'],
-      ['funny', '재미있는'], ['good', '좋은'], ['little', '작은'],
-      ['lost', '길을 잃은'], ['red', '빨간색의'], ['stuck', '갇힌, 끼인'],
-      ['wet', '젖은'], ['cold', '추운, 차가운'], ['cross', '화가 난'],
-    ],
-  }),
-  ...defineSheet({
-    file: '3BCF10BD-AD16-453B-A69D-E846506AF38F.PNG',
-    type: 'vocab',
-    words: [
-      ['baby', '아기'], ['boy', '소년'], ['cat', '고양이'],
-      ['child', '아이'], ['children', '아이들'], ['dad', '아빠'],
-      ['dog', '개'], ['family', '가족'], ['girl', '소녀'],
-      ['mum', '엄마'], ['pet', '반려동물'], ['puppy', '강아지'],
-    ],
-  }),
-  ...defineSheet({
-    file: 'A63E09D5-E05B-45FE-93C9-63AF9F1C322C.PNG',
-    type: 'phrase',
-    words: [
-      ['come in', '들어와'], ['get on', '(탈것에) 올라타다'],
-      ['up you go!', '자, 올라가자!'], ['hide and seek', '숨바꼭질'],
-      ['dress up', '옷을 차려입다'], ['up and down', '위아래로'],
-    ],
-  }),
-  ...defineSheet({
-    file: 'DF6163A2-69F2-43DA-AF70-47D690D17B5B.PNG',
-    type: 'phrase',
-    words: [
-      ['look at', '~을 보다'], ['look after', '~을 돌보다'],
-      ['look out!', '조심해!'], ['go away', '저리 가, 떠나다'],
-      ['go on', '계속하다, 어서 해'], ['get up', '일어나다'],
-    ],
-  }),
-  ...defineSheet({
-    file: 'A098052E-F13F-423D-9377-68ED9AB9AD8C.PNG',
-    type: 'vocab',
-    words: [
-      ['bag', '가방'], ['bed', '침대'], ['bike', '자전거'],
-      ['bin', '쓰레기통'], ['bone', '뼈'], ['box', '상자'],
-      ['diary', '일기장'], ['dress', '원피스'], ['duck', '오리'],
-      ['feet', '발'], ['hat', '모자'], ['hook', '고리, 걸이'],
+      ['red', '빨간색'], ['blue', '파란색'],
+      ['muddy', '진흙투성이의'], ['team', '팀'],
+      ['in', '~안에'], ['come on', '자, 어서'],
     ],
   }),
 ];
 
+const UNIT2_BOOKS = [
+  defineBook({
+    id: 'go-away-cat',
+    title: 'Go Away, Cat',
+    file: 'Go Away, Cat.png',
+    words: [
+      ['cat', '고양이'], ['dog', '개'],
+      ['little', '작은'], ['big', '큰'],
+      ['come', '오다'], ['go away', '저리 가'],
+    ],
+  }),
+  defineBook({
+    id: 'go-on-mum',
+    title: 'Go On, Mum!',
+    file: 'Go On, Mum!.png',
+    words: [
+      ['mum', '엄마'], ['again', '다시'],
+      ['not', '아니다, ~않다'], ['go on', '계속하다, 어서 해'],
+      ['not again', '또 안돼, 다시는 안돼'],
+    ],
+  }),
+  defineBook({
+    id: 'look-after-me',
+    title: 'Look After Me',
+    file: 'Look After Me.png',
+    words: [
+      ['net', '그물, 네트'], ['slide', '미끄럼틀'],
+      ['ladder', '사다리'], ['go up', '올라가다'],
+      ['look after', '~을 돌보다'], ['go on', '계속하다, 어서 해'],
+    ],
+  }),
+  defineBook({
+    id: 'present-for-dad',
+    title: 'Present for Dad',
+    file: 'Present for Dad.png',
+    words: [
+      ['present', '선물'], ['bunch', '(꽃) 다발'], ['flower', '꽃'],
+      ['chocolate', '초콜릿'], ['grape', '포도'], ['best', '최고의'],
+      ['for', '~을 위해'], ['box', '상자'], ['best of all', '무엇보다도 최고인'],
+    ],
+  }),
+  defineBook({
+    id: 'top-dog',
+    title: 'Top Dog',
+    file: 'Top Dog.png',
+    words: [
+      ['little', '작은'], ['big', '큰'],
+      ['top', '최고, 꼭대기'], ['best', '최고의'],
+      ['dog', '개'], ['best of all', '무엇보다도 최고인'],
+    ],
+  }),
+  defineBook({
+    id: 'what-dogs-like',
+    title: 'What Dogs Like',
+    file: 'What Dogs Like.png',
+    words: [
+      ['dog', '개'], ['play', '놀다'],
+      ['walk', '걷다, 산책시키다'], ['sleep', '자다'],
+      ['run', '달리다'], ['hate', '싫어하다'],
+    ],
+  }),
+];
+
+// 레벨 1 유닛 목록. "1. First Sentence", "2. More First Sentences A" 만
+// 책이 채워져 있고 나머지는 "준비중" 상태입니다. 새 유닛/책을 추가하려면
+// Level1/ 아래 해당 유닛 폴더에 그림카드 이미지를 넣고 이 배열에
+// 등록하면 됩니다.
+const LEVEL1_UNITS = [
+  { id: 'u1', label: '1. First Sentence', dirName: '1.First Sentence', books: UNIT1_BOOKS },
+  { id: 'u2', label: '2. More First Sentences A', dirName: '2.More First Sentences A', books: UNIT2_BOOKS },
+  { id: 'u3', label: '3. More First Sentences B', dirName: '3.More First Sentences B', books: [] },
+  { id: 'u4', label: '4. Patterned Stories', dirName: '4.Patterned Stories', books: [] },
+  { id: 'u5', label: '5. More Patterned Stories', dirName: '5.More Patterned Stories', books: [] },
+  { id: 'u6', label: '6. Decode and Develop', dirName: '6.Decode and Develop', books: [] },
+];
+
 // 레벨 목록. Level1 만 데이터가 채워져 있고 나머지는 "준비중" 상태입니다.
-// 새 레벨을 추가하려면 LevelN 폴더에 그림카드 이미지를 넣고 이 배열에
-// { id, label, imageDir, items } 형태로 추가하면 됩니다.
 const LEVELS = [
-  { id: 'level1', label: 'Level 1', imageDir: 'Level1', items: LEVEL1_ITEMS },
-  { id: 'level2', label: 'Level 2', imageDir: 'Level2', items: [] },
-  { id: 'level3', label: 'Level 3', imageDir: 'Level3', items: [] },
-  { id: 'level4', label: 'Level 4', imageDir: 'Level4', items: [] },
-  { id: 'level5', label: 'Level 5', imageDir: 'Level5', items: [] },
-  { id: 'level6', label: 'Level 6', imageDir: 'Level6', items: [] },
-  { id: 'level7', label: 'Level 7', imageDir: 'Level7', items: [] },
-  { id: 'level8', label: 'Level 8', imageDir: 'Level8', items: [] },
-  { id: 'level9', label: 'Level 9', imageDir: 'Level9', items: [] },
+  { id: 'level1', label: 'Level 1', dirName: 'Level1', units: LEVEL1_UNITS },
+  { id: 'level2', label: 'Level 2', dirName: 'Level2', units: [] },
+  { id: 'level3', label: 'Level 3', dirName: 'Level3', units: [] },
+  { id: 'level4', label: 'Level 4', dirName: 'Level4', units: [] },
+  { id: 'level5', label: 'Level 5', dirName: 'Level5', units: [] },
+  { id: 'level6', label: 'Level 6', dirName: 'Level6', units: [] },
+  { id: 'level7', label: 'Level 7', dirName: 'Level7', units: [] },
+  { id: 'level8', label: 'Level 8', dirName: 'Level8', units: [] },
+  { id: 'level9', label: 'Level 9', dirName: 'Level9', units: [] },
 ];
