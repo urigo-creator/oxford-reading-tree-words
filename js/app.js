@@ -2,9 +2,41 @@
    Oxford Reading Tree 단어놀이 - 앱 로직
    ========================================================================== */
 
+const QUIZ_ROUND_SIZE = 10;
+
+const QUIZ_TYPES = [
+  {
+    id: 'en2ko',
+    emoji: '🇬🇧 → 🇰🇷',
+    title: '영어 → 한글 뜻',
+    desc: '영어 단어나 표현을 보고 알맞은 한글 뜻을 골라보세요.',
+    pool: (items) => items,
+    prompt: (item) => item.word,
+    answer: (item) => item.ko,
+  },
+  {
+    id: 'ko2en',
+    emoji: '🇰🇷 → 🇬🇧',
+    title: '한글 → 영어',
+    desc: '한글 뜻을 보고 알맞은 영어 단어나 표현을 골라보세요.',
+    pool: (items) => items,
+    prompt: (item) => item.ko,
+    answer: (item) => item.word,
+  },
+  {
+    id: 'sentence',
+    emoji: '📝',
+    title: '문장 고르기',
+    desc: '한글 문장을 보고 올바른 영어 문장을 골라보세요. (Phrase 표현 한정)',
+    pool: (items) => items.filter((i) => i.type === 'phrase'),
+    prompt: (item) => item.ko,
+    answer: (item) => item.word,
+  },
+];
+
 const state = {
   levelId: 'level1',
-  tab: 'vocab', // 'vocab' | 'phrase'
+  tab: 'vocab', // 'vocab' | 'phrase' | 'quiz'
   recorder: null,
   recordedChunks: [],
   recordedUrl: null,
@@ -12,14 +44,11 @@ const state = {
   studyList: [],
   studyIndex: 0,
   studyImageDir: '',
+  quiz: { type: null, questions: [], index: 0, score: 0, answered: false },
 };
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
-
-function slugify(text) {
-  return text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
-}
 
 function escapeHtml(str) {
   return str
@@ -30,8 +59,20 @@ function escapeHtml(str) {
     .replace(/'/g, '&#39;');
 }
 
+function slugify(text) {
+  return text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+}
+
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
 /* -------------------------------------------------------------------------
-   레벨 탭 & Vocabulary/Phrase 서브탭 렌더링
+   레벨 탭 & Vocabulary/Phrase/퀴즈 서브탭 렌더링
    ------------------------------------------------------------------------- */
 
 function renderLevelTabs() {
@@ -62,9 +103,10 @@ function renderLevelTabs() {
         return;
       }
       state.levelId = lv.id;
+      resetQuiz();
       renderLevelTabs();
       renderSubTabs();
-      renderCardGrid();
+      renderMainArea();
       applyLevelTheme(lv.id);
     });
   });
@@ -77,6 +119,8 @@ function applyLevelTheme(levelId) {
 }
 
 function showComingSoon(lv) {
+  $('#quizArea').hidden = true;
+  $('#cardGrid').hidden = false;
   const grid = $('#cardGrid');
   grid.innerHTML = `
     <div class="empty-state">
@@ -92,6 +136,7 @@ function renderSubTabs() {
   const lv = LEVELS.find((l) => l.id === state.levelId);
   const vocabCount = lv.items.filter((i) => i.type === 'vocab').length;
   const phraseCount = lv.items.filter((i) => i.type === 'phrase').length;
+  const showStudyAll = state.tab !== 'quiz';
 
   $('#subTabs').innerHTML = `
     <button class="sub-tab ${state.tab === 'vocab' ? 'is-active' : ''}" data-tab="vocab">
@@ -100,22 +145,37 @@ function renderSubTabs() {
     <button class="sub-tab ${state.tab === 'phrase' ? 'is-active' : ''}" data-tab="phrase">
       💬 Phrase <span class="sub-tab-count">${phraseCount}</span>
     </button>
-    <button class="btn btn-study-all" id="btnStudyAll">🌳 전체 학습하기</button>
+    <button class="sub-tab ${state.tab === 'quiz' ? 'is-active' : ''}" data-tab="quiz">
+      🎯 퀴즈
+    </button>
+    ${showStudyAll ? '<button class="btn btn-study-all" id="btnStudyAll">🌳 전체 학습하기</button>' : ''}
   `;
 
   $$('.sub-tab', $('#subTabs')).forEach((btn) => {
     btn.addEventListener('click', () => {
+      const enteringQuiz = btn.dataset.tab === 'quiz' && state.tab !== 'quiz';
       state.tab = btn.dataset.tab;
+      if (enteringQuiz) resetQuiz();
       renderSubTabs();
-      renderCardGrid();
+      renderMainArea();
     });
   });
 
-  $('#btnStudyAll').addEventListener('click', () => {
-    const items = lv.items.filter((i) => i.type === state.tab);
-    if (items.length === 0) return;
-    startStudySession(items, 0, lv.imageDir);
-  });
+  if (showStudyAll) {
+    $('#btnStudyAll').addEventListener('click', () => {
+      const items = lv.items.filter((i) => i.type === state.tab);
+      if (items.length === 0) return;
+      startStudySession(items, 0, lv.imageDir);
+    });
+  }
+}
+
+function renderMainArea() {
+  const isQuiz = state.tab === 'quiz';
+  $('#cardGrid').hidden = isQuiz;
+  $('#quizArea').hidden = !isQuiz;
+  if (isQuiz) renderQuizArea();
+  else renderCardGrid();
 }
 
 /* -------------------------------------------------------------------------
@@ -162,7 +222,7 @@ function renderCardGrid() {
 }
 
 /* -------------------------------------------------------------------------
-   학습 모달 (발음 듣기 / 녹음 비교 / 영작 첨삭)
+   학습 모달 (발음 듣기 / 녹음 비교)
    ------------------------------------------------------------------------- */
 
 function startStudySession(list, startIndex, imageDir) {
@@ -186,9 +246,6 @@ function renderStudyModalContent() {
   $('#modalWord').textContent = item.word;
   $('#modalKo').textContent = item.ko;
   $('#studyCounter').textContent = `${state.studyIndex + 1} / ${state.studyList.length}`;
-  $('#writingInput').value = '';
-  $('#feedbackBox').hidden = true;
-  $('#feedbackBox').innerHTML = '';
   $('#recordPlayback').hidden = true;
   $('#recordCompareRow').hidden = true;
 
@@ -206,14 +263,6 @@ function closeStudyModal() {
   $('#studyModal').close();
   stopRecordingIfActive();
   stopPronunciationPlayback();
-}
-
-function stopPronunciationPlayback() {
-  if (nativeAudio) {
-    nativeAudio.pause();
-    nativeAudio = null;
-  }
-  if ('speechSynthesis' in window) window.speechSynthesis.cancel();
 }
 
 // 발음 오디오는 원칙적으로 미리 녹음해 둔 파일(Level{N}/audio/{슬러그}.m4a)을
@@ -256,6 +305,14 @@ function speakWithBrowserTTS(text) {
   const preferred = voices.find((v) => v.lang === 'en-GB') || voices.find((v) => v.lang && v.lang.startsWith('en'));
   if (preferred) utter.voice = preferred;
   window.speechSynthesis.speak(utter);
+}
+
+function stopPronunciationPlayback() {
+  if (nativeAudio) {
+    nativeAudio.pause();
+    nativeAudio = null;
+  }
+  if ('speechSynthesis' in window) window.speechSynthesis.cancel();
 }
 
 // 일부 브라우저는 getVoices() 가 비동기로 채워지므로 미리 한 번 불러둠
@@ -324,111 +381,149 @@ function updateRecordButton() {
 }
 
 /* -------------------------------------------------------------------------
-   영작 첨삭 (Claude API 직접 호출)
+   퀴즈
    ------------------------------------------------------------------------- */
 
-function getSettings() {
-  return {
-    apiKey: localStorage.getItem('ort_api_key') || '',
-    model: localStorage.getItem('ort_model') || 'claude-opus-5',
-  };
+function resetQuiz() {
+  state.quiz = { type: null, questions: [], index: 0, score: 0, answered: false };
 }
 
-async function requestWritingFeedback() {
-  const item = currentStudyItem();
-  const sentence = $('#writingInput').value.trim();
-  const { apiKey, model } = getSettings();
-  const box = $('#feedbackBox');
+function buildQuizQuestions(quizType, lv) {
+  const pool = quizType.pool(lv.items);
+  const roundSize = Math.min(QUIZ_ROUND_SIZE, pool.length);
+  const chosen = shuffle(pool.slice()).slice(0, roundSize);
 
-  if (!sentence) {
-    alert('먼저 영어 문장을 입력해 주세요.');
-    return;
-  }
-  if (!apiKey) {
-    box.hidden = false;
-    box.className = 'feedback-box feedback-warn';
-    box.innerHTML = `API 키가 설정되어 있지 않아요. 오른쪽 위 <strong>⚙️ 설정</strong> 에서 Claude API 키를 먼저 입력해 주세요.`;
-    return;
-  }
+  return chosen.map((item) => {
+    const correctText = quizType.answer(item);
+    const norm = (s) => s.trim().toLowerCase();
+    const distractorPool = pool.filter((p) => p !== item && norm(quizType.answer(p)) !== norm(correctText));
+    const distractors = shuffle(distractorPool.slice()).slice(0, 3).map((p) => quizType.answer(p));
+    const options = shuffle([correctText, ...distractors]);
+    return { promptText: quizType.prompt(item), correctText, options };
+  });
+}
 
-  box.hidden = false;
-  box.className = 'feedback-box feedback-loading';
-  box.innerHTML = `<span class="spinner"></span> 첨삭 중이에요...`;
-
-  const systemPrompt = [
-    'You are a warm, encouraging English tutor for Korean parents/teachers helping young children (ages 4-8) learn English words from the Oxford Reading Tree scheme.',
-    'The learner just studied one target word or phrase and wrote a practice sentence using it.',
-    'Respond ONLY in Korean, in plain text (no markdown headers), using this simple structure with line breaks:',
-    '1) 첫 줄: "잘했어요!" 또는 "조금만 고쳐볼까요?" 로 시작하는 한 줄 총평',
-    '2) "고친 문장: ..." (문법/표현이 이미 자연스러우면 원문 그대로 반복)',
-    '3) "설명: ..." 2~3문장으로, 쉬운 말로 왜 고쳤는지 설명 (아이에게 알려줄 부모님이 이해하기 쉽게)',
-    'Keep the whole response under 120 words. Be encouraging, never harsh.',
-  ].join('\n');
-
-  const userContent = `학습 단어/표현: "${item.word}"\n학습자가 만든 문장: "${sentence}"`;
-
-  try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true',
-      },
-      body: JSON.stringify({
-        model,
-        max_tokens: 512,
-        system: systemPrompt,
-        output_config: { effort: 'medium' },
-        messages: [{ role: 'user', content: userContent }],
-      }),
-    });
-
-    const data = await res.json();
-
-    if (!res.ok) {
-      const msg = data && data.error && data.error.message ? data.error.message : `HTTP ${res.status}`;
-      box.className = 'feedback-box feedback-warn';
-      box.innerHTML = `첨삭 요청에 실패했어요: ${escapeHtml(msg)}`;
-      return;
-    }
-
-    const textBlock = (data.content || []).find((b) => b.type === 'text');
-    const raw = textBlock ? textBlock.text : '(응답이 비어 있어요)';
-    box.className = 'feedback-box feedback-ok';
-    box.innerHTML = escapeHtml(raw)
-      .replace(/\n/g, '<br>')
-      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-  } catch (err) {
-    box.className = 'feedback-box feedback-warn';
-    box.innerHTML = `네트워크 오류로 첨삭을 받지 못했어요. (${escapeHtml(String(err.message || err))})`;
+function renderQuizArea() {
+  const container = $('#quizArea');
+  if (!state.quiz.type) {
+    renderQuizTypeSelect(container);
+  } else if (state.quiz.index >= state.quiz.questions.length) {
+    renderQuizResult(container);
+  } else {
+    renderQuizQuestion(container);
   }
 }
 
-/* -------------------------------------------------------------------------
-   설정 모달 (API 키 관리)
-   ------------------------------------------------------------------------- */
-
-function openSettingsModal() {
-  const { apiKey, model } = getSettings();
-  $('#settingsApiKey').value = apiKey;
-  $('#settingsModel').value = model;
-  $('#settingsModal').showModal();
+function renderQuizTypeSelect(container) {
+  const lv = LEVELS.find((l) => l.id === state.levelId);
+  container.innerHTML = `
+    <div class="quiz-type-grid">
+      ${QUIZ_TYPES.map((qt) => {
+        const poolSize = qt.pool(lv.items).length;
+        const disabled = poolSize < 4;
+        return `
+          <button class="quiz-type-card" data-quiz-type="${qt.id}" ${disabled ? 'disabled aria-disabled="true"' : ''}>
+            <span class="quiz-type-emoji">${qt.emoji}</span>
+            <div class="quiz-type-title">${qt.title}</div>
+            <div class="quiz-type-desc">${qt.desc}</div>
+          </button>
+        `;
+      }).join('')}
+    </div>
+  `;
+  $$('.quiz-type-card:not([disabled])', container).forEach((btn) => {
+    btn.addEventListener('click', () => startQuiz(btn.dataset.quizType));
+  });
 }
 
-function saveSettings() {
-  const key = $('#settingsApiKey').value.trim();
-  const model = $('#settingsModel').value;
-  if (key) localStorage.setItem('ort_api_key', key);
-  else localStorage.removeItem('ort_api_key');
-  localStorage.setItem('ort_model', model);
-  $('#settingsModal').close();
+function startQuiz(typeId) {
+  const lv = LEVELS.find((l) => l.id === state.levelId);
+  const quizType = QUIZ_TYPES.find((q) => q.id === typeId);
+  const questions = buildQuizQuestions(quizType, lv);
+  state.quiz = { type: quizType, questions, index: 0, score: 0, answered: false };
+  renderQuizArea();
 }
 
-function clearApiKey() {
-  localStorage.removeItem('ort_api_key');
-  $('#settingsApiKey').value = '';
+function renderQuizQuestion(container) {
+  const { questions, index, type } = state.quiz;
+  const q = questions[index];
+  const progressPct = Math.round((index / questions.length) * 100);
+
+  container.innerHTML = `
+    <div class="quiz-session">
+      <div class="quiz-top-row">
+        <button class="quiz-back-link" id="quizBackLink">← 퀴즈 종류 다시 고르기</button>
+        <span class="quiz-progress-text">${index + 1} / ${questions.length}</span>
+      </div>
+      <div class="quiz-progress-bar"><div class="quiz-progress-fill" style="width:${progressPct}%"></div></div>
+      <div class="quiz-prompt-card">
+        <p class="quiz-prompt-label">${escapeHtml(type.title)}</p>
+        <p class="quiz-prompt-text">${escapeHtml(q.promptText)}</p>
+      </div>
+      <div class="quiz-options">
+        ${q.options.map((opt) => `<button class="quiz-option" data-opt="${escapeHtml(opt)}">${escapeHtml(opt)}</button>`).join('')}
+      </div>
+      <div class="quiz-next-row" id="quizNextRow" hidden>
+        <button class="btn btn-quiz-next" id="btnQuizNext">다음 문제 →</button>
+      </div>
+    </div>
+  `;
+
+  $('#quizBackLink').addEventListener('click', () => {
+    resetQuiz();
+    renderQuizArea();
+  });
+  $$('.quiz-option', container).forEach((btn) => {
+    btn.addEventListener('click', () => selectQuizAnswer(btn.dataset.opt));
+  });
+  $('#btnQuizNext').addEventListener('click', () => {
+    state.quiz.index += 1;
+    state.quiz.answered = false;
+    renderQuizArea();
+  });
+}
+
+function selectQuizAnswer(selectedText) {
+  if (state.quiz.answered) return;
+  state.quiz.answered = true;
+  const q = state.quiz.questions[state.quiz.index];
+  if (selectedText === q.correctText) state.quiz.score += 1;
+
+  $$('.quiz-option').forEach((btn) => {
+    btn.disabled = true;
+    if (btn.dataset.opt === q.correctText) btn.classList.add('is-correct');
+    else if (btn.dataset.opt === selectedText) btn.classList.add('is-wrong');
+  });
+  $('#quizNextRow').hidden = false;
+}
+
+function renderQuizResult(container) {
+  const { questions, score, type } = state.quiz;
+  const total = questions.length;
+  const pct = Math.round((score / total) * 100);
+  let emoji = '🌱';
+  let message = '다시 도전해봐요!';
+  if (pct >= 90) { emoji = '🌟'; message = '최고예요! 완벽해요!'; }
+  else if (pct >= 70) { emoji = '🎉'; message = '아주 잘했어요!'; }
+  else if (pct >= 50) { emoji = '👍'; message = '잘하고 있어요, 조금만 더!'; }
+
+  container.innerHTML = `
+    <div class="quiz-result">
+      <div class="quiz-result-emoji">${emoji}</div>
+      <div class="quiz-result-score">${total}문제 중 ${score}개 정답 (${pct}점)</div>
+      <p class="quiz-result-message">${message}</p>
+      <div class="quiz-result-actions">
+        <button class="btn btn-secondary" id="btnQuizChangeType">퀴즈 종류 다시 고르기</button>
+        <button class="btn btn-primary" id="btnQuizRetry">다시 풀기</button>
+      </div>
+    </div>
+  `;
+
+  $('#btnQuizChangeType').addEventListener('click', () => {
+    resetQuiz();
+    renderQuizArea();
+  });
+  $('#btnQuizRetry').addEventListener('click', () => startQuiz(type.id));
 }
 
 /* -------------------------------------------------------------------------
@@ -439,7 +534,7 @@ function init() {
   applyLevelTheme(state.levelId);
   renderLevelTabs();
   renderSubTabs();
-  renderCardGrid();
+  renderMainArea();
 
   $('#btnCloseModal').addEventListener('click', closeStudyModal);
   $('#studyModal').addEventListener('click', (e) => {
@@ -448,17 +543,8 @@ function init() {
   $('#btnListenNative').addEventListener('click', () => speakWord(currentStudyItem(), state.studyImageDir));
   $('#btnListenNative2').addEventListener('click', () => speakWord(currentStudyItem(), state.studyImageDir));
   $('#btnRecord').addEventListener('click', toggleRecording);
-  $('#btnGetFeedback').addEventListener('click', requestWritingFeedback);
   $('#btnPrevItem').addEventListener('click', () => goToStudyItem(-1));
   $('#btnNextItem').addEventListener('click', () => goToStudyItem(1));
-
-  $('#btnOpenSettings').addEventListener('click', openSettingsModal);
-  $('#btnCloseSettings').addEventListener('click', () => $('#settingsModal').close());
-  $('#btnSaveSettings').addEventListener('click', saveSettings);
-  $('#btnClearKey').addEventListener('click', clearApiKey);
-  $('#settingsModal').addEventListener('click', (e) => {
-    if (e.target === $('#settingsModal')) $('#settingsModal').close();
-  });
 }
 
 document.addEventListener('DOMContentLoaded', init);
