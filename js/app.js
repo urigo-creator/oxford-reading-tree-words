@@ -17,6 +17,10 @@ const state = {
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
+function slugify(text) {
+  return text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+}
+
 function escapeHtml(str) {
   return str
     .replace(/&/g, '&amp;')
@@ -188,7 +192,7 @@ function renderStudyModalContent() {
   $('#recordPlayback').hidden = true;
   $('#recordCompareRow').hidden = true;
 
-  if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+  stopPronunciationPlayback();
 }
 
 function goToStudyItem(delta) {
@@ -201,12 +205,46 @@ function goToStudyItem(delta) {
 function closeStudyModal() {
   $('#studyModal').close();
   stopRecordingIfActive();
+  stopPronunciationPlayback();
+}
+
+function stopPronunciationPlayback() {
+  if (nativeAudio) {
+    nativeAudio.pause();
+    nativeAudio = null;
+  }
   if ('speechSynthesis' in window) window.speechSynthesis.cancel();
 }
 
-function speakWord(text) {
+// 발음 오디오는 원칙적으로 미리 녹음해 둔 파일(Level{N}/audio/{슬러그}.m4a)을
+// 재생합니다. 기기/브라우저에 따라 브라우저 내장 음성 합성(Web Speech API)의
+// 지원 여부와 설치된 음성이 제각각이라(특히 일부 안드로이드 기기는 아예
+// 소리가 안 나는 경우가 있었음) 미리 만든 오디오 파일을 우선 쓰고,
+// 파일이 없거나 재생에 실패할 때만 음성 합성으로 대체합니다.
+let nativeAudio = null;
+
+function speakWord(item, imageDir) {
+  if (nativeAudio) {
+    nativeAudio.pause();
+    nativeAudio = null;
+  }
+  let fellBack = false;
+  const fallbackToTTS = () => {
+    if (fellBack) return;
+    fellBack = true;
+    speakWithBrowserTTS(item.word);
+  };
+
+  const src = `${imageDir}/audio/${slugify(item.word)}.m4a`;
+  const audio = new Audio(src);
+  nativeAudio = audio;
+  audio.addEventListener('error', fallbackToTTS);
+  audio.play().catch(fallbackToTTS);
+}
+
+function speakWithBrowserTTS(text) {
   if (!('speechSynthesis' in window)) {
-    alert('이 브라우저는 음성 합성을 지원하지 않아요. Chrome / Edge / Safari 최신 버전을 사용해 보세요.');
+    alert('이 브라우저는 발음을 재생할 수 없어요. Chrome / Edge / Safari 최신 버전을 사용해 보세요.');
     return;
   }
   window.speechSynthesis.cancel();
@@ -240,7 +278,10 @@ async function toggleRecording() {
     state.recordedChunks = [];
     recorder.ondataavailable = (e) => { if (e.data.size > 0) state.recordedChunks.push(e.data); };
     recorder.onstop = () => {
-      const blob = new Blob(state.recordedChunks, { type: 'audio/webm' });
+      // Safari 는 audio/mp4 로, Chrome/Firefox 는 보통 audio/webm 으로 녹음하므로
+      // Blob 의 타입은 recorder 가 실제로 사용한 mimeType 을 그대로 써야
+      // 녹음 재생이 깨지지 않습니다.
+      const blob = new Blob(state.recordedChunks, { type: recorder.mimeType || 'audio/webm' });
       if (state.recordedUrl) URL.revokeObjectURL(state.recordedUrl);
       state.recordedUrl = URL.createObjectURL(blob);
       $('#recordPlayback').src = state.recordedUrl;
@@ -404,8 +445,8 @@ function init() {
   $('#studyModal').addEventListener('click', (e) => {
     if (e.target === $('#studyModal')) closeStudyModal();
   });
-  $('#btnListenNative').addEventListener('click', () => speakWord(currentStudyItem().word));
-  $('#btnListenNative2').addEventListener('click', () => speakWord(currentStudyItem().word));
+  $('#btnListenNative').addEventListener('click', () => speakWord(currentStudyItem(), state.studyImageDir));
+  $('#btnListenNative2').addEventListener('click', () => speakWord(currentStudyItem(), state.studyImageDir));
   $('#btnRecord').addEventListener('click', toggleRecording);
   $('#btnGetFeedback').addEventListener('click', requestWritingFeedback);
   $('#btnPrevItem').addEventListener('click', () => goToStudyItem(-1));
