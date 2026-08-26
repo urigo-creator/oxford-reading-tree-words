@@ -304,7 +304,11 @@ function spriteStyle(item, imageDir) {
   const bgSizeY = (sheetH / h) * 100;
   const bgPosX = sheetW === w ? 0 : (x / (sheetW - w)) * 100;
   const bgPosY = sheetH === h ? 0 : (y / (sheetH - h)) * 100;
-  const url = `${imageDir}/${encodeURIComponent(file)}`;
+  // encodeURIComponent leaves ' unescaped, but the URL gets embedded in a
+  // single-quoted CSS url(...) below, so a literal apostrophe in a filename
+  // (e.g. "Kippers's Diary.png") would terminate that quote early and break
+  // the whole background-image. %27-encode it to keep the CSS quote intact.
+  const url = `${imageDir}/${encodeURIComponent(file)}`.replace(/'/g, '%27');
   return `aspect-ratio:${aspect}; background-image:url('${url}'); background-size:${bgSizeX}% ${bgSizeY}%; background-position:${bgPosX}% ${bgPosY}%;`;
 }
 

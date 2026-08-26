@@ -90,7 +90,7 @@ const UNIT1_BOOKS = [
     words: [
       ['look', '보다'], ['bike', '자전거'],
       ['mum', '엄마'], ['ride', '타다'],
-      ['on', '~위에'], ['look at', '~을 보다'],
+      ['on', '~을 타고 가'], ['look at', '~을 보다'],
     ],
   }),
   defineBook({
@@ -110,7 +110,7 @@ const UNIT1_BOOKS = [
     words: [
       ['red', '빨간색'], ['blue', '파란색'],
       ['muddy', '진흙투성이의'], ['team', '팀'],
-      ['in', '~안에'], ['come on', '자, 어서'],
+      ['in', '~을 입고 있는'], ['come on', '자, 어서'],
     ],
   }),
   defineBook({
