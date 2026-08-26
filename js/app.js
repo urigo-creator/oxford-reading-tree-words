@@ -2,35 +2,6 @@
    Oxford Reading Tree 단어놀이 - 앱 로직
    ========================================================================== */
 
-const QUIZ_ROUND_SIZE = 10;
-
-function dedupeByWord(items) {
-  const seen = new Set();
-  const result = [];
-  for (const item of items) {
-    const key = item.word.trim().toLowerCase();
-    if (seen.has(key)) continue;
-    seen.add(key);
-    result.push(item);
-  }
-  return result;
-}
-
-// "문장 고르기" 오답 보기용 전체 후보 풀. 책 한 권에는 예문이 등록된
-// 구/문장 표현이 0~3개뿐이라 그 책만으로는 오답 3개를 못 채우는 경우가
-// 많습니다. 그래서 "출제할 문제"는 지금 보고 있는 책 안의 표현으로만
-// 내되(탭마다 문제가 달라지도록), "오답 보기"만 전체 레벨의 모든 표현
-// 중에서 채웁니다.
-function getAllPhraseItems() {
-  const all = [];
-  for (const lv of LEVELS) {
-    for (const unit of lv.units) {
-      for (const book of unit.books) all.push(...book.items);
-    }
-  }
-  return dedupeByWord(all.filter((i) => PHRASE_EXAMPLES[i.word.trim().toLowerCase()]));
-}
-
 const QUIZ_TYPES = [
   {
     id: 'en2ko',
@@ -56,14 +27,15 @@ const QUIZ_TYPES = [
     id: 'sentence',
     emoji: '📝',
     title: '문장 고르기',
-    // 단순히 뜻 맞히기가 아니라, 표현이 실제로 쓰이는 한국어 문장을 보고
-    // 그 표현이 들어간 올바른 영어 문장을 고르는 방식이라 PHRASE_EXAMPLES
-    // 에 예문이 등록된 표현만 출제 대상입니다.
-    desc: '한글 문장을 보고, 그 표현이 들어간 올바른 영어 문장을 골라보세요.',
-    getQuestionPool: (book) => dedupeByWord(book.items.filter((i) => PHRASE_EXAMPLES[i.word.trim().toLowerCase()])),
-    getDistractorPool: () => getAllPhraseItems(),
-    prompt: (item) => PHRASE_EXAMPLES[item.word.trim().toLowerCase()].ko,
-    answer: (item) => PHRASE_EXAMPLES[item.word.trim().toLowerCase()].en,
+    // 단순히 뜻 맞히기가 아니라, 그 단어/표현이 실제로 쓰이는 한국어
+    // 문장을 보고 그 단어가 들어간 올바른 영어 문장을 고르는 방식이라
+    // SENTENCE_EXAMPLES 에 예문이 등록된 단어만 출제 대상입니다(현재는
+    // 모든 카드에 예문이 있어서 사실상 카드 수와 문제 수가 같습니다).
+    desc: '한글 문장을 보고, 그 단어가 들어간 올바른 영어 문장을 골라보세요.',
+    getQuestionPool: (book) => book.items.filter((i) => SENTENCE_EXAMPLES[i.word.trim().toLowerCase()]),
+    getDistractorPool: (book) => book.items.filter((i) => SENTENCE_EXAMPLES[i.word.trim().toLowerCase()]),
+    prompt: (item) => SENTENCE_EXAMPLES[item.word.trim().toLowerCase()].ko,
+    answer: (item) => SENTENCE_EXAMPLES[item.word.trim().toLowerCase()].en,
   },
 ];
 
@@ -537,8 +509,7 @@ function updateRecordButton() {
 }
 
 /* -------------------------------------------------------------------------
-   퀴즈 (문제는 항상 현재 책의 단어/표현에서만 출제되어 탭마다 달라짐;
-   "문장 고르기"의 오답 보기만 전체 레벨에서 채워옴)
+   퀴즈 (그 책의 카드 수만큼 문제가 나옴 - 카드 한 장당 문제 하나)
    ------------------------------------------------------------------------- */
 
 function resetQuiz() {
@@ -546,8 +517,7 @@ function resetQuiz() {
 }
 
 function buildQuizQuestions(quizType, questionPool, distractorPool) {
-  const roundSize = Math.min(QUIZ_ROUND_SIZE, questionPool.length);
-  const chosen = shuffle(questionPool.slice()).slice(0, roundSize);
+  const chosen = shuffle(questionPool.slice());
 
   return chosen.map((item) => {
     const correctText = quizType.answer(item);
