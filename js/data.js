@@ -73,26 +73,6 @@ function defineBook({ id, title, file, words }) {
 
 const UNIT1_BOOKS = [
   defineBook({
-    id: 'big-feet',
-    title: 'Big Feet',
-    file: 'Big Feet.png',
-    words: [
-      ['big', '큰'], ['feet', '발'],
-      ['monster', '괴물'], ['dinosaur', '공룡'],
-      ['giant', '거인'], ['dad', '아빠'],
-    ],
-  }),
-  defineBook({
-    id: 'go-away-floppy',
-    title: 'Go Away, Floppy',
-    file: 'Go Away, Floppy.png',
-    words: [
-      ['skip', '깡충깡충 뛰다'], ['paint', '그림을 그리다'],
-      ['sorry', '미안해'], ['back', '뒤로, 등'],
-      ['go away', '저리 가'], ['come back', '돌아오다'],
-    ],
-  }),
-  defineBook({
     id: 'hide-and-seek',
     title: 'Hide and Seek',
     file: 'Hide and Seek.png',
@@ -101,17 +81,6 @@ const UNIT1_BOOKS = [
       ['see', '보다'], ['all', '모두'],
       ['yes', '네'], ['hide and seek', '숨바꼭질'],
       ['can', '~할 수 있다'], ["can't", '~할 수 없다'],
-    ],
-  }),
-  defineBook({
-    id: 'kippers-diary',
-    title: "Kipper's Diary",
-    file: "Kippers's Diary.png",
-    words: [
-      ['diary', '일기장'], ['wet', '젖은'], ['windy', '바람이 부는'],
-      ['sunny', '화창한'], ['hot', '더운'], ['fun', '재미있는'],
-      ['shop', '가게'], ['pool', '수영장'], ['park', '공원'],
-      ['day', '하루, 날'], ['go', '가다'], ['to', '~으로'],
     ],
   }),
   defineBook({
@@ -125,6 +94,16 @@ const UNIT1_BOOKS = [
     ],
   }),
   defineBook({
+    id: 'go-away-floppy',
+    title: 'Go Away, Floppy',
+    file: 'Go Away, Floppy.png',
+    words: [
+      ['skip', '깡충깡충 뛰다'], ['paint', '그림을 그리다'],
+      ['sorry', '미안해'], ['back', '뒤로, 등'],
+      ['go away', '저리 가'], ['come back', '돌아오다'],
+    ],
+  }),
+  defineBook({
     id: 'reds-and-blues',
     title: 'Reds and Blues',
     file: 'Reds and Blues.png',
@@ -134,37 +113,38 @@ const UNIT1_BOOKS = [
       ['in', '~안에'], ['come on', '자, 어서'],
     ],
   }),
+  defineBook({
+    id: 'big-feet',
+    title: 'Big Feet',
+    file: 'Big Feet.png',
+    words: [
+      ['big', '큰'], ['feet', '발'],
+      ['monster', '괴물'], ['dinosaur', '공룡'],
+      ['giant', '거인'], ['dad', '아빠'],
+    ],
+  }),
+  defineBook({
+    id: 'kippers-diary',
+    title: "Kipper's Diary",
+    file: "Kippers's Diary.png",
+    words: [
+      ['diary', '일기장'], ['wet', '젖은'], ['windy', '바람이 부는'],
+      ['sunny', '화창한'], ['hot', '더운'], ['fun', '재미있는'],
+      ['shop', '가게'], ['pool', '수영장'], ['park', '공원'],
+      ['day', '하루, 날'], ['go', '가다'], ['to', '~으로'],
+    ],
+  }),
 ];
 
 const UNIT2_BOOKS = [
   defineBook({
-    id: 'go-away-cat',
-    title: 'Go Away, Cat',
-    file: 'Go Away, Cat.png',
+    id: 'what-dogs-like',
+    title: 'What Dogs Like',
+    file: 'What Dogs Like.png',
     words: [
-      ['cat', '고양이'], ['dog', '개'],
-      ['little', '작은'], ['big', '큰'],
-      ['come', '오다'], ['go away', '저리 가'],
-    ],
-  }),
-  defineBook({
-    id: 'go-on-mum',
-    title: 'Go On, Mum!',
-    file: 'Go On, Mum!.png',
-    words: [
-      ['mum', '엄마'], ['again', '다시'],
-      ['not', '아니다, ~않다'], ['go on', '계속하다, 어서 해'],
-      ['not again', '또 안돼, 다시는 안돼'],
-    ],
-  }),
-  defineBook({
-    id: 'look-after-me',
-    title: 'Look After Me',
-    file: 'Look After Me.png',
-    words: [
-      ['net', '그물, 네트'], ['slide', '미끄럼틀'],
-      ['ladder', '사다리'], ['go up', '올라가다'],
-      ['look after', '~을 돌보다'], ['go on', '계속하다, 어서 해'],
+      ['dog', '개'], ['play', '놀다'],
+      ['walk', '걷다, 산책시키다'], ['sleep', '자다'],
+      ['run', '달리다'], ['hate', '싫어하다'],
     ],
   }),
   defineBook({
@@ -188,13 +168,33 @@ const UNIT2_BOOKS = [
     ],
   }),
   defineBook({
-    id: 'what-dogs-like',
-    title: 'What Dogs Like',
-    file: 'What Dogs Like.png',
+    id: 'look-after-me',
+    title: 'Look After Me',
+    file: 'Look After Me.png',
     words: [
-      ['dog', '개'], ['play', '놀다'],
-      ['walk', '걷다, 산책시키다'], ['sleep', '자다'],
-      ['run', '달리다'], ['hate', '싫어하다'],
+      ['net', '그물, 네트'], ['slide', '미끄럼틀'],
+      ['ladder', '사다리'], ['go up', '올라가다'],
+      ['look after', '~을 돌보다'], ['go on', '계속하다, 어서 해'],
+    ],
+  }),
+  defineBook({
+    id: 'go-on-mum',
+    title: 'Go On, Mum!',
+    file: 'Go On, Mum!.png',
+    words: [
+      ['mum', '엄마'], ['again', '다시'],
+      ['not', '아니다, ~않다'], ['go on', '계속하다, 어서 해'],
+      ['not again', '또 안돼, 다시는 안돼'],
+    ],
+  }),
+  defineBook({
+    id: 'go-away-cat',
+    title: 'Go Away, Cat',
+    file: 'Go Away, Cat.png',
+    words: [
+      ['cat', '고양이'], ['dog', '개'],
+      ['little', '작은'], ['big', '큰'],
+      ['come', '오다'], ['go away', '저리 가'],
     ],
   }),
 ];
