@@ -4,13 +4,41 @@
 
 const QUIZ_ROUND_SIZE = 10;
 
+function dedupeByWord(items) {
+  const seen = new Set();
+  const result = [];
+  for (const item of items) {
+    const key = item.word.trim().toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    result.push(item);
+  }
+  return result;
+}
+
+// "문장 고르기" 오답 보기용 전체 후보 풀. 책 한 권에는 예문이 등록된
+// 구/문장 표현이 0~3개뿐이라 그 책만으로는 오답 3개를 못 채우는 경우가
+// 많습니다. 그래서 "출제할 문제"는 지금 보고 있는 책 안의 표현으로만
+// 내되(탭마다 문제가 달라지도록), "오답 보기"만 전체 레벨의 모든 표현
+// 중에서 채웁니다.
+function getAllPhraseItems() {
+  const all = [];
+  for (const lv of LEVELS) {
+    for (const unit of lv.units) {
+      for (const book of unit.books) all.push(...book.items);
+    }
+  }
+  return dedupeByWord(all.filter((i) => PHRASE_EXAMPLES[i.word.trim().toLowerCase()]));
+}
+
 const QUIZ_TYPES = [
   {
     id: 'en2ko',
     emoji: '🇬🇧 → 🇰🇷',
     title: '영어 → 한글 뜻',
     desc: '영어 단어나 표현을 보고 알맞은 한글 뜻을 골라보세요.',
-    getPool: (book) => book.items,
+    getQuestionPool: (book) => book.items,
+    getDistractorPool: (book) => book.items,
     prompt: (item) => item.word,
     answer: (item) => item.ko,
   },
@@ -19,7 +47,8 @@ const QUIZ_TYPES = [
     emoji: '🇰🇷 → 🇬🇧',
     title: '한글 → 영어',
     desc: '한글 뜻을 보고 알맞은 영어 단어나 표현을 골라보세요.',
-    getPool: (book) => book.items,
+    getQuestionPool: (book) => book.items,
+    getDistractorPool: (book) => book.items,
     prompt: (item) => item.ko,
     answer: (item) => item.word,
   },
@@ -27,24 +56,12 @@ const QUIZ_TYPES = [
     id: 'sentence',
     emoji: '📝',
     title: '문장 고르기',
-    // 책 한 권에는 구/문장 표현(공백이 있는 단어)이 몇 개 안 되는 경우가
-    // 많아서(0~3개), 이 유형만 예외적으로 같은 유닛의 책 전체에서 모아
-    // 출제합니다. 단순히 뜻 맞히기가 아니라, 그 표현이 실제로 쓰이는
-    // 한국어 문장을 보고 표현이 들어간 올바른 영어 문장을 고르는 방식이라
-    // PHRASE_EXAMPLES 에 예문이 등록된 표현만 출제 대상입니다.
-    desc: '한글 문장을 보고, 그 표현이 들어간 올바른 영어 문장을 골라보세요. (이 유닛 전체에서 출제)',
-    getPool: (book, unit) => {
-      const items = unit.books.flatMap((b) => b.items).filter((i) => PHRASE_EXAMPLES[i.word.trim().toLowerCase()]);
-      const seen = new Set();
-      const deduped = [];
-      for (const item of items) {
-        const key = item.word.trim().toLowerCase();
-        if (seen.has(key)) continue;
-        seen.add(key);
-        deduped.push(item);
-      }
-      return deduped;
-    },
+    // 단순히 뜻 맞히기가 아니라, 표현이 실제로 쓰이는 한국어 문장을 보고
+    // 그 표현이 들어간 올바른 영어 문장을 고르는 방식이라 PHRASE_EXAMPLES
+    // 에 예문이 등록된 표현만 출제 대상입니다.
+    desc: '한글 문장을 보고, 그 표현이 들어간 올바른 영어 문장을 골라보세요.',
+    getQuestionPool: (book) => dedupeByWord(book.items.filter((i) => PHRASE_EXAMPLES[i.word.trim().toLowerCase()])),
+    getDistractorPool: () => getAllPhraseItems(),
     prompt: (item) => PHRASE_EXAMPLES[item.word.trim().toLowerCase()].ko,
     answer: (item) => PHRASE_EXAMPLES[item.word.trim().toLowerCase()].en,
   },
@@ -520,22 +537,23 @@ function updateRecordButton() {
 }
 
 /* -------------------------------------------------------------------------
-   퀴즈 (기본적으로 현재 책의 단어들로 출제, "문장 고르기"만 유닛 전체 출제)
+   퀴즈 (문제는 항상 현재 책의 단어/표현에서만 출제되어 탭마다 달라짐;
+   "문장 고르기"의 오답 보기만 전체 레벨에서 채워옴)
    ------------------------------------------------------------------------- */
 
 function resetQuiz() {
   state.quiz = { type: null, questions: [], index: 0, score: 0, answered: false };
 }
 
-function buildQuizQuestions(quizType, pool) {
-  const roundSize = Math.min(QUIZ_ROUND_SIZE, pool.length);
-  const chosen = shuffle(pool.slice()).slice(0, roundSize);
+function buildQuizQuestions(quizType, questionPool, distractorPool) {
+  const roundSize = Math.min(QUIZ_ROUND_SIZE, questionPool.length);
+  const chosen = shuffle(questionPool.slice()).slice(0, roundSize);
 
   return chosen.map((item) => {
     const correctText = quizType.answer(item);
     const norm = (s) => s.trim().toLowerCase();
-    const distractorPool = pool.filter((p) => p !== item && norm(quizType.answer(p)) !== norm(correctText));
-    const distractors = shuffle(distractorPool.slice()).slice(0, 3).map((p) => quizType.answer(p));
+    const candidates = distractorPool.filter((p) => p !== item && norm(quizType.answer(p)) !== norm(correctText));
+    const distractors = shuffle(candidates.slice()).slice(0, 3).map((p) => quizType.answer(p));
     const options = shuffle([correctText, ...distractors]);
     return { promptText: quizType.prompt(item), correctText, options };
   });
@@ -558,8 +576,8 @@ function renderQuizTypeSelect(container) {
   container.innerHTML = `
     <div class="quiz-type-grid">
       ${QUIZ_TYPES.map((qt) => {
-        const poolSize = qt.getPool(book, unit).length;
-        const disabled = poolSize < 4;
+        const poolSize = qt.getQuestionPool(book, unit).length;
+        const disabled = poolSize < 1;
         return `
           <button class="quiz-type-card" data-quiz-type="${qt.id}" ${disabled ? 'disabled aria-disabled="true"' : ''}>
             <span class="quiz-type-emoji">${qt.emoji}</span>
@@ -579,8 +597,9 @@ function startQuiz(typeId) {
   const book = currentBook();
   const unit = currentUnit();
   const quizType = QUIZ_TYPES.find((q) => q.id === typeId);
-  const pool = quizType.getPool(book, unit);
-  const questions = buildQuizQuestions(quizType, pool);
+  const questionPool = quizType.getQuestionPool(book, unit);
+  const distractorPool = quizType.getDistractorPool(book, unit);
+  const questions = buildQuizQuestions(quizType, questionPool, distractorPool);
   state.quiz = { type: quizType, questions, index: 0, score: 0, answered: false };
   renderQuizArea();
 }
