@@ -10,7 +10,7 @@ const QUIZ_TYPES = [
     emoji: '🇬🇧 → 🇰🇷',
     title: '영어 → 한글 뜻',
     desc: '영어 단어나 표현을 보고 알맞은 한글 뜻을 골라보세요.',
-    pool: (items) => items,
+    getPool: (book) => book.items,
     prompt: (item) => item.word,
     answer: (item) => item.ko,
   },
@@ -19,7 +19,7 @@ const QUIZ_TYPES = [
     emoji: '🇰🇷 → 🇬🇧',
     title: '한글 → 영어',
     desc: '한글 뜻을 보고 알맞은 영어 단어나 표현을 골라보세요.',
-    pool: (items) => items,
+    getPool: (book) => book.items,
     prompt: (item) => item.ko,
     answer: (item) => item.word,
   },
@@ -27,8 +27,11 @@ const QUIZ_TYPES = [
     id: 'sentence',
     emoji: '📝',
     title: '문장 고르기',
-    desc: '한글 뜻을 보고 올바른 영어 표현을 골라보세요. (구/문장 표현 한정)',
-    pool: (items) => items.filter((i) => i.word.includes(' ')),
+    // 책 한 권에는 구/문장 표현(공백이 있는 단어)이 몇 개 안 되는 경우가
+    // 많아서(0~3개), 이 유형만 예외적으로 같은 유닛의 책 전체에서 모아
+    // 출제합니다.
+    desc: '한글 뜻을 보고 올바른 영어 표현을 골라보세요. (이 유닛의 구/문장 표현 전체에서 출제)',
+    getPool: (book, unit) => unit.books.flatMap((b) => b.items).filter((i) => i.word.includes(' ')),
     prompt: (item) => item.ko,
     answer: (item) => item.word,
   },
@@ -504,15 +507,14 @@ function updateRecordButton() {
 }
 
 /* -------------------------------------------------------------------------
-   퀴즈 (현재 선택된 책의 단어들로 출제)
+   퀴즈 (기본적으로 현재 책의 단어들로 출제, "문장 고르기"만 유닛 전체 출제)
    ------------------------------------------------------------------------- */
 
 function resetQuiz() {
   state.quiz = { type: null, questions: [], index: 0, score: 0, answered: false };
 }
 
-function buildQuizQuestions(quizType, items) {
-  const pool = quizType.pool(items);
+function buildQuizQuestions(quizType, pool) {
   const roundSize = Math.min(QUIZ_ROUND_SIZE, pool.length);
   const chosen = shuffle(pool.slice()).slice(0, roundSize);
 
@@ -539,10 +541,11 @@ function renderQuizArea() {
 
 function renderQuizTypeSelect(container) {
   const book = currentBook();
+  const unit = currentUnit();
   container.innerHTML = `
     <div class="quiz-type-grid">
       ${QUIZ_TYPES.map((qt) => {
-        const poolSize = qt.pool(book.items).length;
+        const poolSize = qt.getPool(book, unit).length;
         const disabled = poolSize < 4;
         return `
           <button class="quiz-type-card" data-quiz-type="${qt.id}" ${disabled ? 'disabled aria-disabled="true"' : ''}>
@@ -561,8 +564,10 @@ function renderQuizTypeSelect(container) {
 
 function startQuiz(typeId) {
   const book = currentBook();
+  const unit = currentUnit();
   const quizType = QUIZ_TYPES.find((q) => q.id === typeId);
-  const questions = buildQuizQuestions(quizType, book.items);
+  const pool = quizType.getPool(book, unit);
+  const questions = buildQuizQuestions(quizType, pool);
   state.quiz = { type: quizType, questions, index: 0, score: 0, answered: false };
   renderQuizArea();
 }
